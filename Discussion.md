@@ -1,4 +1,4 @@
-### Problem Statement: Efficient Log Retrieval from a Large File
+## Problem Statement: Efficient Log Retrieval from a Large File
 
 #### Solutions Considered:
 
