@@ -1,48 +1,51 @@
 import sys
-import requests
 import os
+import re
 
-# URL of the log file
-LOG_FILE_URL = "https://limewire.com/d/90794bb3-6831-4e02-8a59-ffc7f3b8b2a3"
-
-def extract_logs(date):
+def extract_logs(input_file, output_file, target_date):
     """
-    Extracts logs for a specific date without downloading the full file.
-    Ensures the server supports streaming.
+    Extract logs for the specified date and save them to the output file.
+    
+    :param input_file: The path to the large log file.
+    :param output_file: The path to the output file where logs will be saved.
+    :param target_date: The date (YYYY-MM-DD) to filter logs by.
     """
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # Move outside src/
-    output_dir = os.path.join(base_dir, "output")  # Ensure output is outside src/
-    os.makedirs(output_dir, exist_ok=True)  # Create if not exists
-
-    output_file = os.path.join(output_dir, f"output_{date}.txt")
-
     try:
-        # Attempt to stream the file
-        with requests.get(LOG_FILE_URL, stream=True, timeout=10) as response:
-            response.raise_for_status()  # Raise an error if the request fails
+        with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+            for line in infile:
+                # Extract the date from the line
+                log_date = line.split(" ")[0]
+                if log_date == target_date:
+                    outfile.write(line)
+        
+        print(f"Logs for {target_date} have been extracted to {output_file}")
+    except FileNotFoundError:
+        print(f"Error: The file {input_file} was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-            # Check if streaming is supported
-            if "content-length" not in response.headers and "transfer-encoding" not in response.headers:
-                raise ValueError("❌ Streaming is not supported by the server. Full download required.")
+def main():
+    # Ensure the correct number of arguments
+    if len(sys.argv) != 2:
+        print("Usage: python extract_logs.py <YYYY-MM-DD>")
+        sys.exit(1)
+    
+    target_date = sys.argv[1]
+    
+    # Validate the date format (YYYY-MM-DD) using a regular expression
+    date_pattern = r"^\d{4}-\d{2}-\d{2}$"
+    if not re.match(date_pattern, target_date):
+        print("Error: Invalid date format. Please use YYYY-MM-DD.")
+        sys.exit(1)
+    
+    # Set the input and output paths relative to the current directory
+    input_file = os.path.join('..', 'input', 'test_logs.log')  # Input folder is outside src
+    output_file = os.path.join('..', 'output', f'output_{target_date}.log')  # Output folder is outside src
+    
+    # Ensure output folder exists
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-            found_logs = False
-            with open(output_file, "w") as out_file:
-                for line in response.iter_lines(decode_unicode=True):
-                    if line and line.startswith(date):  # Ensure it's not empty
-                        out_file.write(line + "\n")
-                        found_logs = True
-
-            print(f"✅ Logs for {date} saved to {output_file}")
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error fetching logs: {e}")
-    except ValueError as ve:
-        print(ve)
+    extract_logs(input_file, output_file, target_date)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python extract_logs.py YYYY-MM-DD")
-        sys.exit(1)
-
-    date = sys.argv[1]
-    extract_logs(date)
+    main()
